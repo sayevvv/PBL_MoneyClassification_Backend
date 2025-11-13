@@ -1,0 +1,12 @@
+# Daftar library yang dibutuhkan oleh app.py
+# Untuk menginstal, jalankan:
+# pip install -r requirements.txt
+
+flask
+numpy
+opencv-python-headless
+scikit-learn
+scikit-image
+joblib
+Pillow
+xgboost
