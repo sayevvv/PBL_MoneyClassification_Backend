@@ -51,15 +51,18 @@ PBL-Backend/
 ├── requirements.txt                # Dependencies Python
 ├── README.md                       # Dokumentasi (file ini)
 │
+├── gambar_uji/                     # Folder untuk gambar testing
+│   └── README.txt
+│
 ├── models/                         # Folder model ML
-│   ├── label_encoder_v2.joblib    # Label encoder (shared)
+│   ├── label_encoder_v3.joblib    # Label encoder (shared)
 │   │
 │   ├── svm/                       # Model SVM
-│   │   ├── svm_model_v2.joblib   
-│   │   └── svm_scaler_v2.joblib  
+│   │   ├── svm_model_v3.joblib   
+│   │   └── svm_scaler_v3.joblib  
 │   │
 │   └── xgboost/                   # Model XGBoost
-│       └── xgb_model_v2.joblib   
+│       └── xgb_model_v3.joblib   
 │
 └── venv/                          # Virtual environment (tidak di-commit)
 ```
@@ -129,11 +132,12 @@ Anda akan melihat status model yang tersedia.
 
 Gunakan script `test_api.py` yang disediakan:
 
-```powershell
-# Edit test_api.py terlebih dahulu:
-# - Ubah TEST_IMAGE_PATH ke path gambar Anda
-# - Ubah MODEL_TO_TEST ke "svm" atau "xgboost"
+1. Buat folder `gambar_uji` di root project.
+2. Masukkan gambar-gambar uang yang ingin dites ke dalam folder tersebut.
+3. Jalankan script:
 
+```powershell
+# Opsional: Edit test_api.py untuk mengganti MODEL_TO_TEST ("svm" atau "xgboost")
 python test_api.py
 ```
 
@@ -184,17 +188,41 @@ Content-Type: application/json
 ```json
 {
   "prediction": "50000",
-  "model_version": "v2 (Warna+Tekstur+Bentuk)",
-  "model_used": "SVM"
+  "model_version": "v3 (Warna+Tekstur+Bentuk + Deteksi Negative)",
+  "model_used": "SVM",
+  "explanation": "Gambar ini memiliki warna dominan Biru (200°) dengan intensitas kuat...",
+  "image_characteristics": {
+    "dominant_color": {
+      "color_name": "Biru",
+      "hue_degree": 200,
+      "saturation_level": 150,
+      "color_strength": "kuat",
+      "saturation_value": 0.85
+    },
+    "texture_pattern": {
+      "dominant_lbp_pattern": 23,
+      "texture_complexity": "tinggi",
+      "uniformity": 0.15,
+      "variation": 0.25
+    },
+    "shape_info": {
+      "symmetry": "simetris",
+      "elongation": 0.0012
+    }
+  },
+  "total_features_extracted": 443
 }
 ```
 
 **Response Fields:**
-| Field           | Type   | Description                                    |
-|-----------------|--------|------------------------------------------------|
-| `prediction`    | string | Denominasi uang yang diprediksi               |
-| `model_version` | string | Versi model dan fitur yang digunakan          |
-| `model_used`    | string | Model yang digunakan untuk prediksi           |
+| Field | Type | Description |
+|---|---|---|
+| `prediction` | string | Denominasi uang yang diprediksi (atau "NEGATIVE") |
+| `model_version` | string | Versi model dan fitur yang digunakan |
+| `model_used` | string | Model yang digunakan untuk prediksi (SVM/XGBoost) |
+| `explanation` | string | Penjelasan naratif tentang karakteristik gambar |
+| `image_characteristics` | object | Detail teknis fitur visual (warna, tekstur, bentuk) |
+| `total_features_extracted` | integer | Jumlah total fitur yang diekstrak dari gambar |
 
 **Response (Error - 400 Bad Request):**
 ```json
