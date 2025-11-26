@@ -20,6 +20,7 @@ import numpy as np
 import joblib
 import base64
 import io
+import time
 from flask import Flask, request, jsonify, render_template
 from skimage.feature import local_binary_pattern # Untuk LBP
 from PIL import Image
@@ -163,6 +164,9 @@ def predict():
         return jsonify({"error": "Satu atau lebih file model (SVM/XGB/Scaler/Encoder) tidak berhasil dimuat."}), 500
 
     try:
+        # Mulai timer
+        start_time = time.time()
+
         # 1. Dapatkan data JSON dari request
         data = request.get_json()
         if 'image' not in data:
@@ -257,6 +261,10 @@ def predict():
         # 7. Buat penjelasan berdasarkan karakteristik gambar
         explanation = f"Gambar ini memiliki warna dominan {image_characteristics['dominant_color']['color_name']} ({hue_degree}°) dengan intensitas {image_characteristics['dominant_color']['color_strength']}, tekstur dengan kompleksitas {image_characteristics['texture_pattern']['texture_complexity']}, dan bentuk yang {image_characteristics['shape_info']['symmetry']}."
 
+        # Hitung waktu eksekusi
+        end_time = time.time()
+        execution_time_ms = round((end_time - start_time) * 1000, 2)
+
         # 8. Kirim Respons dengan karakteristik gambar
         return jsonify({
             "prediction": prediction_label[0],
@@ -264,7 +272,8 @@ def predict():
             "model_used": model_used,
             "image_characteristics": image_characteristics,
             "explanation": explanation,
-            "total_features_extracted": int(len(features))
+            "total_features_extracted": int(len(features)),
+            "execution_time_ms": execution_time_ms
         })
 
     except Exception as e:

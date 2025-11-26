@@ -210,7 +210,8 @@ Content-Type: application/json
       "elongation": 0.0012
     }
   },
-  "total_features_extracted": 443
+  "total_features_extracted": 443,
+  "execution_time_ms": 125.5
 }
 ```
 
@@ -223,6 +224,7 @@ Content-Type: application/json
 | `explanation` | string | Penjelasan naratif tentang karakteristik gambar |
 | `image_characteristics` | object | Detail teknis fitur visual (warna, tekstur, bentuk) |
 | `total_features_extracted` | integer | Jumlah total fitur yang diekstrak dari gambar |
+| `execution_time_ms` | float | Waktu pemrosesan di server dalam milidetik |
 
 **Response (Error - 400 Bad Request):**
 ```json
