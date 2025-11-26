@@ -97,6 +97,24 @@ def test_single_image(image_path, model_name):
             print(f"✓ Prediksi: Rp {result.get('prediction', 'N/A')}")
             print(f"  Model: {result.get('model_used', 'N/A')}")
             print(f"  Versi: {result.get('model_version', 'N/A')}")
+            
+            # Tampilkan Penjelasan dan Karakteristik
+            explanation = result.get('explanation', '')
+            if explanation:
+                print(f"  Penjelasan: {explanation}")
+            
+            characteristics = result.get('image_characteristics', {})
+            if characteristics:
+                print("  Karakteristik:")
+                dom_color = characteristics.get('dominant_color', {})
+                print(f"    - Warna Dominan: {dom_color.get('color_name', 'N/A')} (Hue: {dom_color.get('hue_degree', 'N/A')}°)")
+                
+                tex_pattern = characteristics.get('texture_pattern', {})
+                print(f"    - Tekstur: Kompleksitas {tex_pattern.get('texture_complexity', 'N/A')}")
+                
+                shape_info = characteristics.get('shape_info', {})
+                print(f"    - Bentuk: {shape_info.get('symmetry', 'N/A')}")
+
             return {"status": "success", "result": result, "time": elapsed_time}
         else:
             try:

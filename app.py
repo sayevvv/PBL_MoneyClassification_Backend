@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-Backend Flask untuk Model Deteksi Uang (Versi 2)
+Backend Flask untuk Model Deteksi Uang (Versi 3)
 --- SERVER GABUNGAN (SVM & XGBOOST) ---
+--- MAMPU MENDETEKSI "BUKAN UANG/NEGATIVE" ---
 
 API Endpoint:
 - URL: /predict
@@ -45,14 +46,14 @@ LBP_BINS = int(LBP_POINTS + 2)
 MODEL_DIR = 'models'
 
 # --- Path Model SVM ---
-MODEL_SVM_PATH = os.path.join(MODEL_DIR, 'svm', 'svm_model_v2.joblib')
-SCALER_SVM_PATH = os.path.join(MODEL_DIR, 'svm', 'svm_scaler_v2.joblib')
+MODEL_SVM_PATH = os.path.join(MODEL_DIR, 'svm', 'svm_model_v3.joblib')
+SCALER_SVM_PATH = os.path.join(MODEL_DIR, 'svm', 'svm_scaler_v3.joblib')
 
 # --- Path Model XGBoost ---
-MODEL_XGB_PATH = os.path.join(MODEL_DIR, 'xgboost', 'xgb_model_v2.joblib')
+MODEL_XGB_PATH = os.path.join(MODEL_DIR, 'xgboost', 'xgb_model_v3.joblib')
 
 # --- Path Encoder (Dipakai Bersama) ---
-LE_PATH = os.path.join(MODEL_DIR, 'label_encoder_v2.joblib')
+LE_PATH = os.path.join(MODEL_DIR, 'label_encoder_v3.joblib')
 
 # Muat SEMUA model, scaler, dan label encoder saat startup
 try:
@@ -75,7 +76,27 @@ except FileNotFoundError as e:
     model_svm, scaler_svm, model_xgb, le = None, None, None, None
 
 # -----------------------------------------------------
-# 3. FUNGSI EKSTRAKSI FITUR V2 (TIDAK BERUBAH)
+# 3. FUNGSI HELPER
+# -----------------------------------------------------
+def get_color_name(hue_degree):
+    """Helper untuk mengkonversi hue degree ke nama warna"""
+    if 0 <= hue_degree < 15 or 345 <= hue_degree <= 360:
+        return "Merah"
+    elif 15 <= hue_degree < 45:
+        return "Oranye"
+    elif 45 <= hue_degree < 75:
+        return "Kuning"
+    elif 75 <= hue_degree < 150:
+        return "Hijau"
+    elif 150 <= hue_degree < 210:
+        return "Biru"
+    elif 210 <= hue_degree < 270:
+        return "Ungu"
+    else:
+        return "Merah Muda"
+
+# -----------------------------------------------------
+# 4. FUNGSI EKSTRAKSI FITUR V2 (TIDAK BERUBAH)
 # -----------------------------------------------------
 def preprocess_and_extract_features_v2(image_array):
     """
@@ -128,7 +149,7 @@ def preprocess_and_extract_features_v2(image_array):
         return None
 
 # -----------------------------------------------------
-# 4. ROUTE API (DIPERBARUI)
+# 5. ROUTE API (DIPERBARUI)
 # -----------------------------------------------------
 @app.route("/")
 def index():
@@ -171,6 +192,45 @@ def predict():
         # Fitur harus dalam 2D array (1 baris) untuk scaler/model
         features_2d = features.reshape(1, -1)
 
+        # --- ANALISIS KARAKTERISTIK GAMBAR INI ---
+        color_size = H_BINS + S_BINS
+        texture_size = LBP_BINS
+
+        color_features = features[:color_size]
+        texture_features = features[color_size:color_size + texture_size]
+        shape_features = features[color_size + texture_size:]
+
+        # Cari karakteristik DOMINAN dari gambar ini
+        dominant_hue_idx = np.argmax(color_features[:H_BINS])
+        dominant_saturation_idx = np.argmax(color_features[H_BINS:])
+        dominant_lbp_pattern = np.argmax(texture_features)
+
+        hue_degree = int(dominant_hue_idx * 2)
+        saturation_strength = float(color_features[H_BINS + dominant_saturation_idx])
+        texture_std = float(np.std(texture_features))
+        texture_max = float(np.max(texture_features))
+
+        image_characteristics = {
+            "dominant_color": {
+                "hue_degree": hue_degree,
+                "color_name": get_color_name(hue_degree),
+                "saturation_level": int(dominant_saturation_idx),
+                "color_strength": "kuat" if saturation_strength > 0.5 else "lemah",
+                "saturation_value": round(saturation_strength, 4)
+            },
+            "texture_pattern": {
+                "dominant_lbp_pattern": int(dominant_lbp_pattern),
+                "texture_complexity": "tinggi" if texture_std > 0.1 else "rendah",
+                "uniformity": round(texture_max, 4),
+                "variation": round(texture_std, 4)
+            },
+            "shape_info": {
+                "hu_moments": [round(float(val), 6) for val in shape_features],
+                "symmetry": "simetris" if abs(shape_features[0]) < 0.5 else "asimetris",
+                "elongation": round(float(shape_features[1]), 6)
+            }
+        }
+
         # --- (BARU) LOGIKA PEMILIHAN MODEL ---
 
         if model_choice == 'svm':
@@ -194,11 +254,17 @@ def predict():
         # 6. Ubah prediksi (angka) kembali ke label (string)
         prediction_label = le.inverse_transform(prediction_int)
 
-        # 7. Kirim Respons
+        # 7. Buat penjelasan berdasarkan karakteristik gambar
+        explanation = f"Gambar ini memiliki warna dominan {image_characteristics['dominant_color']['color_name']} ({hue_degree}°) dengan intensitas {image_characteristics['dominant_color']['color_strength']}, tekstur dengan kompleksitas {image_characteristics['texture_pattern']['texture_complexity']}, dan bentuk yang {image_characteristics['shape_info']['symmetry']}."
+
+        # 8. Kirim Respons dengan karakteristik gambar
         return jsonify({
             "prediction": prediction_label[0],
-            "model_version": "v2 (Warna+Tekstur+Bentuk)",
-            "model_used": model_used
+            "model_version": "v3 (Warna+Tekstur+Bentuk + Deteksi Negative)",
+            "model_used": model_used,
+            "image_characteristics": image_characteristics,
+            "explanation": explanation,
+            "total_features_extracted": int(len(features))
         })
 
     except Exception as e:
@@ -206,9 +272,9 @@ def predict():
         return jsonify({"error": f"Terjadi kesalahan internal: {str(e)}"}), 500
 
 # -----------------------------------------------------
-# 5. JALANKAN APLIKASI
+# 6. JALANKAN APLIKASI
 # -----------------------------------------------------
 if __name__ == "__main__":
     # host='0.0.0.0' membuat server bisa diakses dari jaringan lokal (HP Anda)
-    # debug=True akan auto-restart server jika Anda mengubah kode ini
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    # debug=False untuk testing (gunakan True saat development)
+    app.run(host='0.0.0.0', port=5000, debug=False)
